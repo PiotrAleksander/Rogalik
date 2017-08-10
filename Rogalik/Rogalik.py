@@ -32,13 +32,13 @@ def handle_keys():
         return True
 
     if libtcod.console_is_key_pressed(libtcod.KEY_UP):
-        playery.move(0, -1)
+        player.move(0, -1)
     elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
-        playery.move(0, 1)
+        player.move(0, 1)
     elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
-        playerx.move(-1, 0)
+        player.move(-1, 0)
     elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
-        playerx.move(1, 0)
+        player.move(1, 0)
 
 
 libtcod.console_set_custom_font('arial10x10.png', libtcod.FONT_TYPE_GRAYSCALE | libtcod.FONT_LAYOUT_TCOD)

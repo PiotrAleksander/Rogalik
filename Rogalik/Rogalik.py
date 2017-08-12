@@ -5,6 +5,7 @@ import textwrap
 
 SCREEN_WIDTH = 80
 SCREEN_HEIGHT = 50
+LIMIT_FPS = 20
 MAP_WIDTH = 80
 MAP_HEIGHT = 43
 ROOM_MAX_SIZE = 10
@@ -252,22 +253,33 @@ def place_objects(room):
                 monster = Object(x, y, 'T', libtcod.darker_green, 'Troll', True, troll_fighter_component, ai_component)
             objects.append(monster)
 
-def handle_keys():
+def get_names_under_mouse():
+    global mouse
 
-    key = libtcod.console_wait_for_keypress(True)
+    (x, y) = (mouse.cx, mouse.cy)
+
+    names = [obj.name for obj in objects
+             if obj.x == x and obj.y == y and libtcod.map_is_in_fov(fov_map, obj.x, obj.y)]
+
+    names = ', '.join(names)
+    return names.capitalize()
+
+def handle_keys():
+    global key
+
     if key.vk == libtcod.KEY_ENTER and key.lalt:
         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
     elif key.vk == libtcod.KEY_ESCAPE:
         return 'exit'
 
     if game_state == 'playing':
-        if libtcod.console_is_key_pressed(libtcod.KEY_UP):
+        if key.vk == libtcod.KEY_UP:
             player_move_or_attack(0, -1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
+        elif key.vk == libtcod.KEY_DOWN:
             player_move_or_attack(0, 1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
+        elif key.vk ==libtcod.KEY_LEFT:
             player_move_or_attack(-1, 0) 
-        elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
+        elif key.vk == libtcod.KEY_RIGHT:
             player_move_or_attack(1, 0)
         else:
             return 'didnt-take-turn'
@@ -335,6 +347,7 @@ def render_all():
 
     render_bar(1, 1, BAR_WIDTH, 'HP', player.fighter.hp, player.fighter.max_hp, libtcod.light_red, libtcod.darker_red)
     libtcod.console_set_default_foreground(con, libtcod.light_gray)
+    libtcod.console_print_ex(panel, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, get_names_under_mouse())
     libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, 0, 0, PANEL_Y)
 
 
@@ -370,8 +383,14 @@ game_state = 'playing'
 player_action = None
 panel = libtcod.console_new(SCREEN_WIDTH, PANEL_HEIGHT)
 message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', libtcod.red)
+
+mouse = libtcod.Mouse()
+key = libtcod.Key()
+libtcod.sys_set_fps(LIMIT_FPS)
+
 #MAIN GAME LOOP
 while not libtcod.console_is_window_closed():
+    libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS|libtcod.EVENT_MOUSE, key, mouse)
     render_all()
 
     libtcod.console_flush()

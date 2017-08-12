@@ -273,14 +273,22 @@ def handle_keys():
         return 'exit'
 
     if game_state == 'playing':
-        if key.vk == libtcod.KEY_UP:
+        if key.vk == libtcod.KEY_UP or key.vk == libtcod.KEY_KP8 or key.vk == libtcod.KEY_8:
             player_move_or_attack(0, -1)
-        elif key.vk == libtcod.KEY_DOWN:
+        elif key.vk == libtcod.KEY_DOWN or key.vk == libtcod.KEY_KP2 or key.vk == libtcod.KEY_2:
             player_move_or_attack(0, 1)
-        elif key.vk ==libtcod.KEY_LEFT:
+        elif key.vk ==libtcod.KEY_LEFT or key.vk == libtcod.KEY_KP4 or key.vk == libtcod.KEY_4:
             player_move_or_attack(-1, 0) 
-        elif key.vk == libtcod.KEY_RIGHT:
+        elif key.vk == libtcod.KEY_RIGHT or key.vk == libtcod.KEY_KP6 or key.vk == libtcod.KEY_6:
             player_move_or_attack(1, 0)
+        elif key.vk == libtcod.KEY_KP9 or key.vk == libtcod.KEY_9:
+            player_move_or_attack(1, -1)
+        elif key.vk == libtcod.KEY_KP7 or key.vk == libtcod.KEY_7:
+            player_move_or_attack(-1, -1)
+        elif key.vk == libtcod.KEY_KP3 or key.vk == libtcod.KEY_3:
+            player_move_or_attack(1, 1)
+        elif key.vk == libtcod.KEY_KP1 or key.vk == libtcod.KEY_1:
+            player_move_or_attack(-1, 1)
         else:
             return 'didnt-take-turn'
 

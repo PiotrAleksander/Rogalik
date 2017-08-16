@@ -15,7 +15,6 @@ MAX_ROOMS = 30
 FOV_ALGO = 0
 FOV_LIGHT_WALLS = True
 TORCH_RADIUS = 10
-MAX_MONSTERS = 3
 BAR_WIDTH = 20
 PANEL_HEIGHT = 7
 PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
@@ -24,13 +23,13 @@ MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
 MSG_HEIGHT = PANEL_HEIGHT - 1
 MAX_ROOM_ITEMS = 2
 INVENTORY_WIDTH = 50
-HEAL_AMOUNT = 4
+HEAL_AMOUNT = 40
 LIGHTNING_RANGE = 20
-LIGHTNING_DAMAGE = 5
+LIGHTNING_DAMAGE = 40
 CONFUSE_NUM_TURNS = 10
 CONFUSE_RANGE = 8
 FIREBALL_RADIUS = 3
-FIREBALL_DAMAGE = 12
+FIREBALL_DAMAGE = 25
 
 
 color_dark_wall = libtcod.Color(0, 0, 100)
@@ -416,7 +415,19 @@ def make_map():
             num_rooms += 1
           
 def place_objects(room):
-    num_monsters = libtcod.random_get_int(0, 0, MAX_MONSTERS)
+    max_monsters = from_dungeon_level([[2, 1], [3,4], [5, 6]])
+    monster_chances = {}
+    monster_chances['orc'] = 80
+    monster_chances['troll'] = from_dungeon_level([[15, 3], [30, 5], [60, 7]])
+    
+    max_items = from_dungeon_level([[1, 1], [2, 4]])
+
+    item_chances = {}
+    item_chances['heal'] = 35
+    item_chances['lightning'] = from_dungeon_level([[25, 4]])
+    item_chances['fireball'] = from_dungeon_level([[25, 6]])
+    item_chances['confuse'] = from_dungeon_level([[10, 2]])
+    num_monsters = libtcod.random_get_int(0, 0, max_monsters)
     ai_component = BasicMonster()
 
     for i in range(num_monsters):
@@ -425,27 +436,27 @@ def place_objects(room):
 
         if not is_blocked(x, y):
             if libtcod.random_get_int(0, 0, 100) < 80:
-                orc_fighter_component = Fighter(hp=10, defense=0, power=3, death_function=monster_death)
+                orc_fighter_component = Fighter(hp=20, defense=0, power=4, death_function=monster_death)
                 monster = Object(x, y, 'o', libtcod.desaturated_green, 'Orc', True, orc_fighter_component, ai_component)
             else:
-                troll_fighter_component = Fighter(hp=16, defense=1, power=4, death_function=monster_death)
+                troll_fighter_component = Fighter(hp=30, defense=2, power=8, death_function=monster_death)
                 monster = Object(x, y, 'T', libtcod.darker_green, 'Troll', True, troll_fighter_component, ai_component)
             objects.append(monster)
 
-    num_items = libtcod.random_get_int(0, 0, MAX_ROOM_ITEMS)
+    num_items = libtcod.random_get_int(0, 0, max_items)
     for i in range(num_items):
         x = libtcod.random_get_int(0, room.x1 + 1, room.x2 - 1)
         y = libtcod.random_get_int(0, room.y1 + 1, room.y2 - 1)
 
         if not is_blocked(x, y):
-            dice = libtcod.random_get_int(0, 0, 100)
-            if dice < 70:
+            choice = random_choice_index(item_chances)
+            if choice == 'heal':
                 item_component = Item(use_function=cast_heal)
                 item = Object(x, y, '!', libtcod.violet, 'healing potion', item=item_component)
-            elif dice < 70+10:
+            elif choice == 'lightning':
                 item_component = Item(use_function=cast_lightning)
                 item = Object(x, y, '#', libtcod.light_yellow, 'scroll of lightning bolt', item=item_component)
-            elif dice < 70+10+10:
+            elif choice == 'fireball':
                 item_component = Item(use_function=cast_fireball)
                 item = Object(x, y, '#', libtcod.light_yellow, 'scroll of fireball', item=item_component)
             else:
@@ -465,6 +476,28 @@ def get_names_under_mouse():
 
     names = ', '.join(names)
     return names.capitalize()
+
+def random_choice_index(chances):
+    dice = libtcod.random_get_int(0, 1, sum(chances))
+
+    running_sum = 0
+    choice = 0
+    for w in chances:
+        running_sum += w
+        if dice <= running_sum:
+            return choice
+        choice += 1
+
+def random_choice(chances_dict):
+    chances = chances_dict.values()
+    strings = chances_dict.keys()
+    return strings[random_choice_index(chances)]
+
+def from_dungeon_level(table):
+    for (value, level) in reversed(table):
+        if dungeon_level >= level:
+            return value
+    return 0
 
 def handle_keys():
     global key
@@ -591,11 +624,12 @@ def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
 
 def new_game():
     global player, inventory, game_msgs, game_state
-    fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
+    fighter_component = Fighter(hp=100, defense=1, power=4, death_function=player_death)
     player = Object(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', libtcod.white, 'player', blocks=True, fighter=fighter_component)
 
     game_state = 'playing'
 
+    dungeon_level = 1
     make_map()
     initialize_fov()
 

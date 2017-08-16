@@ -640,30 +640,37 @@ def handle_keys():
             player_move_or_attack(1, 1)
         elif key.vk == libtcod.KEY_KP1 or key.vk == libtcod.KEY_1:
             player_move_or_attack(-1, 1)
+        elif key.vk == libtcod.KEY_KP5 or key.vk == libtcod.KEY_5:
+            pass
         else:
             key_char = chr(key.c)
-            if key_char == 'c':
-                level_up_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-                msgbox('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.fighter.xp) +
-                    '\nExperience to level up: ' + str(level_up_xp) + '\n\nMaximum HP: ' + str(player.fighter.max_hp) +
-                    '\nAttack: ' + str(player.fighter.power) + '\nDefense: ' + str(player.fighter.defense), CHARACTER_SCREEN_WIDTH)
+ 
             if key_char == 'g':
                 for object in objects:
                     if object.x == player.x and object.y == player.y and object.item:
                         object.item.pick_up()
                         break
+ 
             if key_char == 'i':
                 chosen_item = inventory_menu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosen_item is not None:
                     chosen_item.use()
+ 
             if key_char == 'd':
                 chosen_item = inventory_menu('Press the key next to an item to drop it, or any other to cancel.\n')
                 if chosen_item is not None:
                     chosen_item.drop()
+ 
+            if key_char == 'c':
+                level_up_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+                msgbox('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.fighter.xp) +
+                       '\nExperience to level up: ' + str(level_up_xp) + '\n\nMaximum HP: ' + str(player.fighter.max_hp) +
+                       '\nAttack: ' + str(player.fighter.power) + '\nDefense: ' + str(player.fighter.defense), CHARACTER_SCREEN_WIDTH)
+ 
             if key_char == '<':
                 if stairs.x == player.x and stairs.y == player.y:
                     next_level()
-
+ 
             return 'didnt-take-turn'
 
 def player_move_or_attack(dx, dy):

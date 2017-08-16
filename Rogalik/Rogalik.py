@@ -38,7 +38,7 @@ color_dark_ground = libtcod.Color(50, 50, 150)
 color_light_ground = libtcod.Color(200, 180, 50)
 
 class Object:
-    def __init__(self, x, y, char, color, name, blocks = False, fighter=None, ai=None, item=None):
+    def __init__(self, x, y, char, color, name, blocks = False, fighter=None, ai=None, item=None, equipment=None):
         self.x = x
         self.y = y
         self.char = char
@@ -57,6 +57,12 @@ class Object:
         self.ai = ai
         if self.ai:
             self.ai.owner = self
+
+        self.equipment = equipment
+        if self.equipment:
+            self.equipment.owner = self
+            self.item = Item()
+            self.item.owner = self
 
     def move(self, dx, dy):
         if not is_blocked(self.x + dx, self.y + dy):
@@ -120,11 +126,26 @@ class Rect:
 
 class Fighter:
     def __init__(self, hp, defense, power, death_function=None):
-        self.max_hp = hp
+        self.base_max_hp = hp
         self.hp = hp
-        self.defense = defense
-        self.power = power
+        self.base_defense = defense
+        self.base_power = power
         self.death_function = death_function
+
+    @property
+    def power(self):
+        bonus = sum(equipment.power_bonus for equipment in get_all_equipped(self.owner))
+        return self.base_power + bonus
+
+    @property
+    def defense(self):
+        bonus = sum(equipment.defense_bonus for equipment in get_all_equipped(self.owner))
+        return self.base_defense + bonus
+
+    @property
+    def max_hp(self):
+        bonus = sum(equipment.max_hp_bonus for equipment in get_all_equipped(self.owner))
+        return self.base_max_hp + bonus
 
     def take_damage(self, damage):
         self.hp -= damage
@@ -147,6 +168,33 @@ class Fighter:
         self.hp += amount
         if self.hp > self.max_hp:
             self.hp = self.max_hp
+
+class Equipment:
+    def __init__(self, slot, power_bonus=0, defense_bonus=0, max_hp_bonus=0):
+        self.slot = slot
+        self.is_equiped = False
+        self.power_bonus = power_bonus
+        self.defense_bonus = defense_bonus
+        self.max_hp_bonus = max_hp_bonus
+
+    def toggle_equip(self):
+        if self.is_equiped:
+            self.dequip()
+        else:
+            self.equip()
+
+    def equip(self):
+        old_equipment = get_equipped_in_slot(self.slot)
+        if old_equipment is not None:
+            old_equipment.dequip()
+        self.is_equiped = True
+        message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', libtcod.light_green)
+
+    def dequip(self):
+        if not self.is_equiped:
+            return
+        self.is_equiped = False
+        message('Dequipped ' + self.owner.name + ' from ' + self.slot + '.', libtcod.light_yellow)
 
 class BasicMonster:
     def take_turn(self):
@@ -183,6 +231,8 @@ class Item:
             message('You picked up ' + self.owner.name + '!', libtcod.green)
 
     def drop(self):
+        if self.owner.equipment:
+            self.owner.equipment.dequip()
         objects.append(self.owner)
         inventory.remove(self.owner)
         self.owner.x = player.x
@@ -190,6 +240,9 @@ class Item:
         message('You dropped a ' + self.owner.name + '.', libtcod.yellow)
 
     def use(self):
+        if self.owner.equipment:
+            self.owner.equipment.toggle_equip()
+            return
         if self.use_function is None:
             message('The ' + self.owner.name + ' cannot be used.')
         else:
@@ -212,6 +265,16 @@ def monster_death(monster):
     monster.ai = None
     monster.name = 'remains of ' + monster.name
     monster.send_to_back()
+
+def get_all_equipped(obj):
+    if obj == player:
+        equipped_list = []
+        for item in inventory:
+            if item.equipment and item.equipment.is_equiped:
+                equipped_list.append(item.equipment)
+        return equipped_list
+    else:
+        return []
 
 def cast_heal():
     if player.fighter.hp == player.fighter.max_hp:
@@ -331,7 +394,12 @@ def inventory_menu(header):
     if len(inventory) == 0:
         options = ['Inventory is empty.']
     else:
-        options = [item.name for item in inventory]
+        options = []
+        for item in inventory:
+            text = item.name
+            if item.equipment and item.equipment.is_equiped:
+                text = text + ' (on ' + item.equipment.slot + ')'
+            options.append(text)
 
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(inventory) == 0:
@@ -424,6 +492,8 @@ def place_objects(room):
 
     item_chances = {}
     item_chances['heal'] = 35
+    item_chances['sword'] = from_dungeon_level([[5, 4]])
+    item_chances['shield'] = from_dungeon_level([[15, 8]])
     item_chances['lightning'] = from_dungeon_level([[25, 4]])
     item_chances['fireball'] = from_dungeon_level([[25, 6]])
     item_chances['confuse'] = from_dungeon_level([[10, 2]])
@@ -459,6 +529,12 @@ def place_objects(room):
             elif choice == 'fireball':
                 item_component = Item(use_function=cast_fireball)
                 item = Object(x, y, '#', libtcod.light_yellow, 'scroll of fireball', item=item_component)
+            elif choice == 'sword':
+                equipment_component = Equipment(slot='right hand', power_bonus=3)
+                item = Object(x, y, '/', libtcod.sky, 'sword', equipment=equipment_component)
+            elif choice == 'shield':
+                equipment_component = Equipment(slot='left hand', defense_bonus=1)
+                item = Object(x, y, '[', libtcod.darker_orange, 'shield', equipment=equipment_component)
             else:
                 item_component = Item(use_function=cast_confuse)
                 item = Object(x, y, '#', libtcod.light_yellow, 'scroll of confusion spell', item=item_component)
@@ -498,6 +574,12 @@ def from_dungeon_level(table):
         if dungeon_level >= level:
             return value
     return 0
+
+def get_equipped_in_slot(slot):
+    for obj in inventory:
+        if obj.equipment and obj.equipment.slot == slot and obj.equipment.is_equiped:
+            return obj.equipment
+    return None
 
 def handle_keys():
     global key
@@ -624,9 +706,10 @@ def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
 
 def new_game():
     global player, inventory, game_msgs, game_state
-    fighter_component = Fighter(hp=100, defense=1, power=4, death_function=player_death)
+    fighter_component = Fighter(hp=100, defense=1, power=2, death_function=player_death)
     player = Object(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', libtcod.white, 'player', blocks=True, fighter=fighter_component)
-
+    equipment_component = Equipment(slot='right hand', power_bonus=2)
+    dagger = Object(0, 0, '-', libtcod.sky, 'dagger', equipment=equipment_component)
     game_state = 'playing'
 
     dungeon_level = 1
@@ -634,6 +717,9 @@ def new_game():
     initialize_fov()
 
     inventory = []
+    inventory.append(dagger)
+    equipment_component.equip()
+    dagger.always_visible = True
     game_msgs = []
 
     message('Welcome adventurer! Prepare to perish in the Castle of the Orkish Warlock.', libtcod.red)

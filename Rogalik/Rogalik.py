@@ -95,6 +95,30 @@ class Object:
         dy = int(round(dy / distance))
         self.move(dx, dy)
 
+    def move_astar(self, target):
+        fov = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
+
+        for y1 in range(MAP_HEIGHT):
+            for x1 in range(MAP_WIDTH):
+                libtcod.map_set_properties(fov, x1, y1, not map[x1][y1].block_sight, not map[x1][y1].blocked)
+
+        for obj in objects:
+            if obj.blocks and obj != self and obj != target:
+                libtcod.map_set_properties(fov, obj.x, obj.y, True, False)
+
+        my_path = libtcod.path_new_using_map(fov, 1.41)
+        libtcod.path_compute(my_path, self.x, self.y, target.x, target.y)
+
+        if not libtcod.path_is_empty(my_path) and libtcod.path_size(my_path) < 25:
+            x, y = libtcod.path_walk(my_path, True)
+            if x or y:
+                self.x = x
+                self.y = y
+        else:
+            self.move_towards(target.x, target.y)
+
+        libtcod.path_delete(my_path)
+
     def distance_to(self, other):
         dx = other.x - self.x
         dy = other.y - self.y
@@ -203,12 +227,21 @@ class Equipment:
         self.is_equiped = False
         message('Dequipped ' + self.owner.name + ' from ' + self.slot + '.', libtcod.light_yellow)
 
-class BasicMonster:
+class CorridorMonster:
     def take_turn(self):
         monster = self.owner
         if libtcod.map_is_in_fov(fov_map, monster.x, monster.y) and monster.ai:
             if monster.distance_to(player) >= 2:
                 monster.move_towards(player.x, player.y)
+            elif player.fighter.hp > 0:
+                monster.fighter.attack(player)
+
+class BasicMonster:
+    def take_turn(self):
+        monster = self.owner
+        if libtcod.map_is_in_fov(fov_map, monster.x, monster.y) and monster.ai:
+            if monster.distance_to(player) >= 2:
+                monster.move_astar(player)
             elif player.fighter.hp > 0:
                 monster.fighter.attack(player)
 
